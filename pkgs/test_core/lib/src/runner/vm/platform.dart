@@ -163,7 +163,15 @@ class VMPlatform extends PlatformPlugin {
       isolateRef = (await client.getVM()).isolates!.firstWhere(
         (isolate) => isolate.number == isolateNumber.toString(),
       );
-      await client.setName(isolateRef.id!, path);
+      // Under coverage nothing reads the name, and with concurrent suites a
+      // rename races the other suites' getVM calls inside the VM
+      // (https://github.com/dart-lang/sdk/issues/64233). Keep it for a person
+      // picking a paused suite in a debugger.
+      var collectingCoverage =
+          _config.coverage != null || _config.coverageLcov != null;
+      if (_config.pauseAfterLoad || !collectingCoverage) {
+        await client.setName(isolateRef.id!, path);
+      }
       var url = _devtoolsUriFor(serviceWebsocket);
       environment = VMEnvironment(url, isolateRef, client);
     }
